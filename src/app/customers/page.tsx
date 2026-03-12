@@ -37,15 +37,22 @@ export default function CustomersPage() {
   // Delete modal
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [debtMap, setDebtMap] = useState<Record<string, number>>({})
 
   async function fetchData() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/customers', { cache: 'no-store' })
-      const json = (await res.json()) as { data?: Customer[] } & ApiError
-      if (!res.ok) throw new Error(json.error?.message ?? 'Không tải được danh sách')
+      const [custRes, debtRes] = await Promise.all([
+        fetch('/api/customers', { cache: 'no-store' }),
+        fetch('/api/customers/debt', { cache: 'no-store' }),
+      ])
+      const json = (await custRes.json()) as { data?: Customer[] } & ApiError
+      if (!custRes.ok) throw new Error(json.error?.message ?? 'Không tải được danh sách')
       setCustomers(json.data ?? [])
+
+      const debtJson = (await debtRes.json()) as { data?: Record<string, number> }
+      setDebtMap(debtJson.data ?? {})
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Không tải được danh sách')
     } finally {
@@ -250,6 +257,7 @@ export default function CustomersPage() {
                 <tr>
                   <th>Tên</th>
                   <th>SĐT</th>
+                  <th>Nợ</th>
                   <th>Thao tác</th>
                 </tr>
               </thead>
@@ -269,6 +277,18 @@ export default function CustomersPage() {
                           <input className="w-32" value={editState.phone}
                             onChange={(e) => setEditState((prev) => prev ? { ...prev, phone: e.target.value } : prev)} />
                         ) : (c.phone ?? '—')}
+                      </td>
+                      <td>
+                        {(() => {
+                          const debt = debtMap[c.id] ?? 0
+                          return (
+                            <span className="font-medium tabular-nums text-sm"
+                              style={{ color: debt > 0 ? '#e11d48' : '#047857' }}
+                            >
+                              {debt > 0 ? debt.toLocaleString('vi-VN') + 'đ' : '0đ'}
+                            </span>
+                          )
+                        })()}
                       </td>
                       <td>
                         {isEditing ? (

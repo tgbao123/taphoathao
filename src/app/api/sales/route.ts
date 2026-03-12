@@ -36,6 +36,7 @@ export async function POST(request: NextRequest) {
         items: parsedItems,
         note: body.note ? String(body.note) : undefined,
         customerId: body.customerId ? String(body.customerId) : undefined,
+        paidAmount: body.paidAmount !== undefined ? Number(body.paidAmount) : undefined,
       },
       idempotencyKey,
     })

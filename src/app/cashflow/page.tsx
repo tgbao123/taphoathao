@@ -19,6 +19,8 @@ type CashflowItem = {
   amount: number
   occurredAt: string
   note: string | null
+  debtAmount: number
+  customerName: string | null
 }
 
 type ApiError = { error?: { message?: string } }
@@ -331,6 +333,8 @@ export default function CashflowPage() {
                   <th>Loại</th>
                   <th>Danh mục</th>
                   <th>Số tiền</th>
+                  <th>Nợ</th>
+                  <th>Người nợ</th>
                   <th>Ghi chú</th>
                 </tr>
               </thead>
@@ -347,6 +351,12 @@ export default function CashflowPage() {
                     </td>
                     <td>{item.category}</td>
                     <td className="font-medium tabular-nums">{Number(item.amount).toLocaleString('vi-VN')}đ</td>
+                    <td className="font-medium tabular-nums text-sm" style={{ color: item.debtAmount > 0 ? '#e11d48' : 'var(--text-muted)' }}>
+                      {item.debtAmount > 0 ? item.debtAmount.toLocaleString('vi-VN') + 'đ' : '—'}
+                    </td>
+                    <td className="text-sm" style={{ color: item.customerName ? '#6366f1' : 'var(--text-muted)' }}>
+                      {item.customerName ?? '—'}
+                    </td>
                     <td className="text-xs" style={{ color: 'var(--text-muted)' }}>{item.note ?? '—'}</td>
                   </tr>
                 ))}

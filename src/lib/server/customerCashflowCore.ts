@@ -98,19 +98,67 @@ export async function listCashflow(query: CashflowQuery) {
   const { data, error, count } = await builder.range(from, to)
   if (error) return { data: null, error }
 
+  // Cross-reference sales for debt info
+  const saleNos: string[] = []
+  for (const item of data ?? []) {
+    if (item.category === 'Bán hàng' && item.note) {
+      const noteStr = String(item.note)
+      const match = noteStr.match(/Đơn (SO-\d+)/)
+      if (match?.[1]) saleNos.push(match[1])
+    }
+  }
+
+  const saleMap = new Map<string, { debtAmount: number; customerName: string | null }>()
+  if (saleNos.length > 0) {
+    const { data: sales } = await supabase
+      .from('sales')
+      .select('sale_no, debt_amount, customer_id')
+      .in('sale_no', saleNos)
+
+    // Collect unique customer IDs
+    const customerIds = [...new Set(
+      (sales ?? []).map((s) => s.customer_id).filter(Boolean) as string[]
+    )]
+
+    // Fetch customer names in a separate query
+    let customerMap = new Map<string, string>()
+    if (customerIds.length > 0) {
+      const { data: customers } = await supabase
+        .from('customers')
+        .select('id, name')
+        .in('id', customerIds)
+      for (const c of customers ?? []) {
+        customerMap.set(c.id, c.name)
+      }
+    }
+
+    for (const s of sales ?? []) {
+      saleMap.set(s.sale_no, {
+        debtAmount: Number(s.debt_amount ?? 0),
+        customerName: s.customer_id ? customerMap.get(s.customer_id) ?? null : null,
+      })
+    }
+  }
+
   return {
     data: {
       items:
-        data?.map((item) => ({
-          id: item.id,
-          txnType: item.txn_type,
-          entryType: item.txn_type === 'in' ? 'inflow' : 'outflow',
-          category: item.category,
-          amount: Number(item.amount),
-          occurredAt: item.occurred_at,
-          method: item.method,
-          note: item.note,
-        })) ?? [],
+        data?.map((item) => {
+          const match = (item.note as string | null)?.match(/Đơn (SO-\d+)/)
+          const saleInfo = match ? saleMap.get(match[1]) : undefined
+          return {
+            id: item.id,
+            txnType: item.txn_type,
+            entryType: item.txn_type === 'in' ? 'inflow' : 'outflow',
+            category: item.category,
+            amount: Number(item.amount),
+            occurredAt: item.occurred_at,
+            method: item.method,
+            note: item.note,
+            debtAmount: saleInfo?.debtAmount ?? 0,
+            customerName: saleInfo?.customerName ?? null,
+          }
+        }) ?? [],
       pagination: {
         limit: query.limit,
         offset: query.offset,

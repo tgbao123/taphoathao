@@ -11,6 +11,12 @@ type Product = {
   unit?: { name: string; code: string } | null
 }
 
+type Customer = {
+  id: string
+  name: string
+  phone: string | null
+}
+
 type ApiError = {
   error?: {
     message?: string
@@ -30,6 +36,10 @@ export default function SalesPage() {
 
   const [products, setProducts] = useState<Product[]>([])
   const [stockMap, setStockMap] = useState<Record<string, number>>({})
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [selectedCustomerId, setSelectedCustomerId] = useState('')
+  const [isDebt, setIsDebt] = useState(false)
+  const [paidAmount, setPaidAmount] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -43,15 +53,18 @@ export default function SalesPage() {
     setLoading(true)
     setError(null)
     try {
-      const [prodRes, stockRes] = await Promise.all([
+      const [prodRes, stockRes, custRes] = await Promise.all([
         fetch('/api/products', { cache: 'no-store' }),
         fetch('/api/stock', { cache: 'no-store' }),
+        fetch('/api/customers', { cache: 'no-store' }),
       ])
       const prodJson = (await prodRes.json()) as { data?: Product[] } & ApiError
       const stockJson = (await stockRes.json()) as { data?: Record<string, number> }
       if (!prodRes.ok) throw new Error(prodJson.error?.message ?? 'Không tải được sản phẩm')
       setProducts(prodJson.data ?? [])
       setStockMap(stockJson.data ?? {})
+      const custJson = (await custRes.json()) as { data?: Customer[] }
+      setCustomers(custJson.data ?? [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Không tải được sản phẩm')
     } finally {
@@ -62,6 +75,36 @@ export default function SalesPage() {
   useEffect(() => {
     void loadData()
   }, [])
+
+  // Prefill cart from orders page (Tạo lại)
+  useEffect(() => {
+    if (loading || products.length === 0) return
+    const raw = localStorage.getItem('prefill_cart')
+    if (!raw) return
+    localStorage.removeItem('prefill_cart')
+    try {
+      const prefill = JSON.parse(raw) as Array<{ productName: string; qty: number; unitPrice: number }>
+      const cartItems: CartItem[] = []
+      for (const p of prefill) {
+        const match = products.find((pr) => pr.name === p.productName)
+        cartItems.push({
+          productId: match?.id ?? '',
+          name: p.productName,
+          unitName: match?.unit?.name ?? '',
+          qty: String(p.qty),
+          unitPrice: String(p.unitPrice),
+        })
+      }
+      if (cartItems.length > 0) setCart(cartItems)
+    } catch { /* ignore */ }
+
+    const custId = localStorage.getItem('prefill_customer')
+    if (custId) {
+      localStorage.removeItem('prefill_customer')
+      setSelectedCustomerId(custId)
+      setIsDebt(true)
+    }
+  }, [loading, products])
 
   const filteredProducts = useMemo(() => {
     if (!search.trim()) return products
@@ -162,7 +205,11 @@ export default function SalesPage() {
       const res = await fetch('/api/sales', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items }),
+        body: JSON.stringify({
+          items,
+          customerId: selectedCustomerId || undefined,
+          paidAmount: isDebt ? Number(paidAmount || 0) : undefined,
+        }),
       })
 
       const json = (await res.json()) as { saleId?: string; error?: { message?: string } }
@@ -170,6 +217,9 @@ export default function SalesPage() {
 
       setSubmitSuccess('Đã tạo đơn bán thành công!')
       setCart([])
+      setSelectedCustomerId('')
+      setIsDebt(false)
+      setPaidAmount('')
       void loadData()
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Không tạo được đơn bán')
@@ -403,12 +453,59 @@ export default function SalesPage() {
               </div>
             ) : null}
 
+            <div className="space-y-2">
+              <label className="text-xs font-medium flex items-center gap-2" style={{ color: 'var(--text-muted)' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                </svg>
+                Khách hàng (tuỳ chọn)
+              </label>
+              <select className="w-full text-sm" value={selectedCustomerId}
+                onChange={(e) => setSelectedCustomerId(e.target.value)}
+              >
+                <option value="">Khách lẻ</option>
+                {customers.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}{c.phone ? ` - ${c.phone}` : ''}</option>
+                ))}
+              </select>
+            </div>
+
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Tổng tiền</span>
               <span className="text-xl font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>
                 {Number(totalAmount).toLocaleString('vi-VN')}đ
               </span>
             </div>
+
+            {/* Debt toggle */}
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={isDebt}
+                  onChange={(e) => { setIsDebt(e.target.checked); if (!e.target.checked) setPaidAmount('') }}
+                  className="w-4 h-4 rounded"
+                />
+                <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Ghi nợ</span>
+              </label>
+            </div>
+
+            {isDebt ? (
+              <div className="space-y-2 rounded-lg p-3" style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.15)' }}>
+                <label className="text-xs font-medium" style={{ color: '#d97706' }}>
+                  Số tiền đã trả
+                </label>
+                <input className="w-full text-sm" type="number" min="0" placeholder="0"
+                  value={paidAmount}
+                  onChange={(e) => setPaidAmount(e.target.value)}
+                />
+                <div className="flex items-center justify-between text-xs font-medium">
+                  <span style={{ color: '#d97706' }}>Số tiền nợ</span>
+                  <span style={{ color: '#e11d48' }}>
+                    {Math.max(0, totalAmount - Number(paidAmount || 0)).toLocaleString('vi-VN')}đ
+                  </span>
+                </div>
+              </div>
+            ) : null}
 
             <button
               className="btn-primary w-full py-3 flex items-center justify-center gap-2"
