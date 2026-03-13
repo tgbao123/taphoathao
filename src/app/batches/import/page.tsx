@@ -190,7 +190,8 @@ export default function BatchImportPage() {
       ) : null}
 
       <form className="card overflow-hidden" onSubmit={submitImport}>
-        <div className="overflow-x-auto">
+        {/* Desktop Table */}
+        <div className="overflow-x-auto desktop-table">
           <table className="styled-table">
             <thead>
               <tr>
@@ -284,6 +285,55 @@ export default function BatchImportPage() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="mobile-cards flex-col gap-3 p-3">
+          {lines.map((line, index) => (
+            <div key={index} className="mobile-card space-y-2">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Dòng {index + 1}</span>
+                <button className="btn-secondary text-xs py-1 px-2" style={{ color: '#e11d48' }}
+                  onClick={() => removeLine(index)} type="button">✕</button>
+              </div>
+              <select className="w-full" value={line.product_id}
+                onChange={(e) => updateLine(index, { product_id: e.target.value })}>
+                <option value="">Chọn sản phẩm *</option>
+                {products.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>)}
+              </select>
+              <input className="w-full" value={line.batch_no} placeholder="Mã lô (tuỳ chọn)"
+                onChange={(e) => updateLine(index, { batch_no: e.target.value })} />
+              <div className="flex gap-2">
+                <label className="flex-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+                  Giá nhập *
+                  <input className="w-full mt-1" type="number" min="0" step="0.01" value={line.import_price}
+                    onChange={(e) => updateLine(index, { import_price: e.target.value })} />
+                </label>
+                <label className="flex-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+                  Giá bán *
+                  <input className="w-full mt-1" type="number" min="0" step="0.01" value={line.sell_price}
+                    onChange={(e) => updateLine(index, { sell_price: e.target.value })} />
+                </label>
+                <label className="w-20 text-xs" style={{ color: 'var(--text-muted)' }}>
+                  SL *
+                  <input className="w-full mt-1" type="number" min="0.001" step="0.001" value={line.qty_in}
+                    onChange={(e) => updateLine(index, { qty_in: e.target.value })} />
+                </label>
+              </div>
+              <div className="flex gap-2">
+                <label className="flex-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+                  Ngày nhập
+                  <input className="w-full mt-1" type="datetime-local" value={line.imported_at}
+                    onChange={(e) => updateLine(index, { imported_at: e.target.value })} />
+                </label>
+                <label className="flex-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+                  HSD
+                  <input className="w-full mt-1" type="date" value={line.expires_at}
+                    onChange={(e) => updateLine(index, { expires_at: e.target.value })} />
+                </label>
+              </div>
+            </div>
+          ))}
         </div>
 
         <div className="flex flex-wrap gap-2 p-4" style={{ borderTop: '1px solid var(--border)' }}>

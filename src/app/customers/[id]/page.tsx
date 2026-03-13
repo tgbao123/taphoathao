@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 import { useRequireSession } from '@/lib/useRequireSession'
@@ -35,6 +35,7 @@ type CustomerData = {
 export default function CustomerDetailPage() {
   const { checkingSession } = useRequireSession()
   const { id } = useParams<{ id: string }>()
+  const router = useRouter()
   const [data, setData] = useState<CustomerData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -153,11 +154,12 @@ export default function CustomerDetailPage() {
             ) : (
               <div className="space-y-3">
                 {data.orders.map((o) => (
-                  <div key={o.id} className="mobile-card" style={o.status === 'cancelled' ? { opacity: 0.5 } : undefined}>
+                  <div key={o.id} className="mobile-card cursor-pointer" style={o.status === 'cancelled' ? { opacity: 0.5 } : undefined}
+                    onClick={() => router.push(`/orders/${o.id}`)}>
                     {/* Header */}
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <Link href={`/orders/${o.id}`} className="text-xs font-mono font-medium" style={{ color: 'var(--primary)' }}>{o.saleNo}</Link>
+                        <span className="text-xs font-mono font-medium" style={{ color: 'var(--primary)' }}>{o.saleNo}</span>
                         {o.status === 'cancelled' ? (
                           <span className="badge badge-danger text-[10px]">Đã huỷ</span>
                         ) : null}
@@ -194,7 +196,7 @@ export default function CustomerDetailPage() {
                       </div>
                       {o.debtAmount > 0 ? (
                         payingId === o.id ? (
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                             <input type="number" className="w-24 text-xs" placeholder="Số tiền"
                               value={payAmount} onChange={(e) => setPayAmount(e.target.value)}
                               min="1" max={o.debtAmount} />
@@ -206,7 +208,7 @@ export default function CustomerDetailPage() {
                               onClick={() => { setPayingId(null); setPayAmount('') }} type="button">✕</button>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                             <span className="text-xs font-semibold tabular-nums" style={{ color: '#e11d48' }}>
                               Nợ {o.debtAmount.toLocaleString('vi-VN')}đ
                             </span>

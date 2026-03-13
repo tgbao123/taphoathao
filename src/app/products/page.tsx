@@ -381,7 +381,9 @@ export default function ProductsPage() {
         ) : null}
 
         {!loading && !error && products.length > 0 ? (
-          <div className="overflow-x-auto">
+          <>
+          {/* Desktop Table */}
+          <div className="overflow-x-auto desktop-table">
             <table className="styled-table">
               <thead>
                 <tr>
@@ -537,6 +539,76 @@ export default function ProductsPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Mobile Cards */}
+          <div className="mobile-cards flex-col gap-3 p-3">
+            {products.map((product) => {
+              const isEditing = editState?.id === product.id
+              const unit = product.unit ?? unitMap.get(product.unit_id) ?? null
+              return (
+                <div key={product.id} className="mobile-card">
+                  {isEditing ? (
+                    <div className="space-y-2">
+                      <input className="w-full" value={editState.name} placeholder="Tên SP"
+                        onChange={(e) => setEditState((prev) => prev ? { ...prev, name: e.target.value } : prev)} />
+                      <div className="flex gap-2">
+                        <input className="flex-1" type="number" min="0" value={editState.default_sell_price} placeholder="Giá bán"
+                          onChange={(e) => setEditState((prev) => prev ? { ...prev, default_sell_price: e.target.value } : prev)} />
+                        <select className="flex-1" value={editState.unit_id}
+                          onChange={(e) => setEditState((prev) => prev ? { ...prev, unit_id: e.target.value } : prev)}>
+                          <option value="">Đơn vị</option>
+                          {units.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                        </select>
+                      </div>
+                      <input className="w-full" value={editState.barcode} placeholder="Barcode"
+                        onChange={(e) => setEditState((prev) => prev ? { ...prev, barcode: e.target.value } : prev)} />
+                      <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
+                        <input checked={editState.is_active} type="checkbox" className="accent-indigo-600"
+                          onChange={(e) => setEditState((prev) => prev ? { ...prev, is_active: e.target.checked } : prev)} />
+                        Active
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <button className="btn-primary text-xs py-2 px-4 flex-1" disabled={editLoading}
+                          onClick={() => void saveEdit()} type="button">{editLoading ? '...' : 'Lưu'}</button>
+                        <button className="btn-secondary text-xs py-2 px-4"
+                          onClick={() => setEditState(null)} type="button">Hủy</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between mb-1">
+                        <Link href={`/products/${product.id}`} className="text-sm font-semibold" style={{ color: 'var(--primary)' }}>
+                          {product.name}
+                        </Link>
+                        {product.is_active ? (
+                          <span className="badge badge-success text-[10px]">Active</span>
+                        ) : (
+                          <span className="badge badge-neutral text-[10px]">Inactive</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>
+                        <span className="font-medium tabular-nums" style={{ color: 'var(--primary)' }}>
+                          {Number(product.default_sell_price).toLocaleString('vi-VN')}đ
+                        </span>
+                        <span>/ {unit?.name ?? '-'}</span>
+                        {product.barcode ? (
+                          <span className="font-mono" style={{ color: 'var(--text-muted)' }}>{product.barcode}</span>
+                        ) : null}
+                      </div>
+                      <div className="flex items-center gap-2 pt-2" style={{ borderTop: '1px solid var(--border-light)' }}>
+                        <button className="btn-secondary text-xs py-2 px-4 flex-1"
+                          onClick={() => startEdit(product)} type="button">✏️ Sửa</button>
+                        <button className="btn-secondary text-xs py-2 px-4 flex-1"
+                          style={{ color: '#e11d48' }}
+                          onClick={() => void removeProduct(product.id)} type="button">🗑 Xóa</button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          </>
         ) : null}
       </section>
     </div>

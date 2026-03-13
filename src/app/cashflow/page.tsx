@@ -325,7 +325,9 @@ export default function CashflowPage() {
         ) : null}
 
         {!loading && !error && items.length > 0 ? (
-          <div className="overflow-x-auto">
+          <>
+          {/* Desktop Table */}
+          <div className="overflow-x-auto desktop-table">
             <table className="styled-table">
               <thead>
                 <tr>
@@ -363,6 +365,44 @@ export default function CashflowPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Mobile Cards */}
+          <div className="mobile-cards flex-col gap-3 p-3">
+            {items.map((item) => (
+              <div key={item.id} className="mobile-card">
+                <div className="flex items-center justify-between mb-1.5">
+                  {item.entryType === 'inflow' ? (
+                    <span className="badge badge-success text-[10px]">↓ Thu</span>
+                  ) : (
+                    <span className="badge badge-danger text-[10px]">↑ Chi</span>
+                  )}
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    {new Date(item.occurredAt).toLocaleString('vi-VN')}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{item.category}</span>
+                  <span className="text-sm font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>
+                    {Number(item.amount).toLocaleString('vi-VN')}đ
+                  </span>
+                </div>
+                {item.debtAmount > 0 || item.customerName ? (
+                  <div className="flex items-center justify-between text-xs">
+                    <span style={{ color: '#6366f1' }}>{item.customerName ?? ''}</span>
+                    {item.debtAmount > 0 ? (
+                      <span className="font-medium tabular-nums" style={{ color: '#e11d48' }}>
+                        Nợ {item.debtAmount.toLocaleString('vi-VN')}đ
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
+                {item.note ? (
+                  <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{item.note}</p>
+                ) : null}
+              </div>
+            ))}
+          </div>
+          </>
         ) : null}
       </section>
     </div>

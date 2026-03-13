@@ -293,13 +293,14 @@ export default function SalesPage() {
                     <button
                       key={product.id}
                       type="button"
-                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-150 w-full"
+                      className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg px-3 py-2.5 transition-all duration-150 w-full"
                       style={{
                         border: inCart ? '1.5px solid var(--primary-light)' : '1px solid var(--border-light)',
                         background: inCart ? 'rgba(99, 102, 241, 0.04)' : 'transparent',
                       }}
                       onClick={() => addToCart(product)}
                     >
+                      {/* Row 1: Name + Price + Unit */}
                       <p className="text-sm font-semibold flex-shrink-0" style={{ color: 'var(--text-primary)' }}>
                         {product.name}
                       </p>
@@ -311,8 +312,11 @@ export default function SalesPage() {
                           / {product.unit.name}
                         </span>
                       ) : null}
+
+                      {/* Row 2: Stock + Cart controls (push to right) */}
+                      <span className="ml-auto" />
                       <span
-                        className="ml-auto text-xs px-1.5 py-0.5 rounded-md font-medium flex-shrink-0"
+                        className="text-xs px-1.5 py-0.5 rounded-md font-medium flex-shrink-0"
                         style={{
                           background: (stockMap[product.id] ?? 0) <= 0
                             ? 'rgba(225,29,72,0.08)' : (stockMap[product.id] ?? 0) <= 10
@@ -332,17 +336,17 @@ export default function SalesPage() {
                         >
                           <button
                             type="button"
-                            className="w-6 h-6 flex items-center justify-center text-white text-sm font-bold rounded-full hover:bg-white/20 transition-colors"
+                            className="w-7 h-7 flex items-center justify-center text-white text-sm font-bold rounded-full hover:bg-white/20 transition-colors"
                             onClick={(e) => { e.stopPropagation(); decrementCart(product.id) }}
                           >
                             −
                           </button>
-                          <span className="w-5 text-center text-white text-xs font-bold tabular-nums">
+                          <span className="w-6 text-center text-white text-xs font-bold tabular-nums">
                             {Number(inCart.qty) || 0}
                           </span>
                           <button
                             type="button"
-                            className="w-6 h-6 flex items-center justify-center text-white text-sm font-bold rounded-full hover:bg-white/20 transition-colors"
+                            className="w-7 h-7 flex items-center justify-center text-white text-sm font-bold rounded-full hover:bg-white/20 transition-colors"
                             onClick={(e) => { e.stopPropagation(); addToCart(product) }}
                           >
                             +

@@ -208,9 +208,10 @@ export default function OrdersPage() {
                   {filtered.map((o) => {
                     const isEditing = editId === o.id
                     return (
-                      <tr key={o.id} style={o.status === 'cancelled' ? { opacity: 0.5 } : undefined}>
+                      <tr key={o.id} className="cursor-pointer hover:bg-[var(--surface-hover)]" style={o.status === 'cancelled' ? { opacity: 0.5 } : undefined}
+                        onClick={() => router.push(`/orders/${o.id}`)}>
                         <td className="text-xs font-mono" style={{ color: 'var(--primary)' }}>
-                          <Link href={`/orders/${o.id}`} className="hover:underline">{o.saleNo}</Link>
+                          {o.saleNo}
                           {o.note ? <p className="mt-1 font-sans" style={{ color: 'var(--text-muted)' }}>Ghi chú: {o.note}</p> : null}
                         </td>
                         <td className="text-xs" style={{ color: 'var(--text-secondary)' }}>
@@ -246,7 +247,7 @@ export default function OrdersPage() {
                           {o.debtAmount > 0 ? o.debtAmount.toLocaleString('vi-VN') + 'đ' : '0đ'}
                         </td>
                         <td>{statusLabel(o.status)}</td>
-                        <td>
+                        <td onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-1.5">
                             {o.status !== 'cancelled' ? (
                               isEditing ? (
@@ -286,10 +287,13 @@ export default function OrdersPage() {
 
             {/* Mobile Cards */}
             <div className="mobile-cards flex-col gap-3 p-3" style={{ display: 'none' }}>
-              {filtered.map((o) => (
-                <div key={o.id} className="mobile-card" style={o.status === 'cancelled' ? { opacity: 0.5 } : undefined}>
+              {filtered.map((o) => {
+                const isEditing = editId === o.id
+                return (
+                <div key={o.id} className="mobile-card cursor-pointer" style={o.status === 'cancelled' ? { opacity: 0.5 } : undefined}
+                  onClick={() => !isEditing && router.push(`/orders/${o.id}`)}>
                   <div className="flex items-center justify-between mb-2">
-                    <Link href={`/orders/${o.id}`} className="text-xs font-mono font-medium" style={{ color: 'var(--primary)' }}>{o.saleNo}</Link>
+                    <span className="text-xs font-mono font-medium" style={{ color: 'var(--primary)' }}>{o.saleNo}</span>
                     {statusLabel(o.status)}
                   </div>
                   <div className="text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>
@@ -297,47 +301,85 @@ export default function OrdersPage() {
                       <span key={item.id}>{item.productName} ×{item.qty}{idx < o.items.length - 1 ? ', ' : ''}</span>
                     ))}
                   </div>
-                  <div className="grid grid-cols-3 gap-2 text-center mb-2">
-                    <div>
-                      <div className="mobile-card-label">Tổng</div>
-                      <div className="mobile-card-value tabular-nums">{o.totalAmount.toLocaleString('vi-VN')}đ</div>
-                    </div>
-                    <div>
-                      <div className="mobile-card-label">Đã trả</div>
-                      <div className="mobile-card-value tabular-nums">{o.paidAmount.toLocaleString('vi-VN')}đ</div>
-                    </div>
-                    <div>
-                      <div className="mobile-card-label">Nợ</div>
-                      <div className="mobile-card-value tabular-nums" style={{ color: o.debtAmount > 0 ? '#e11d48' : '#047857' }}>
-                        {o.debtAmount > 0 ? o.debtAmount.toLocaleString('vi-VN') + 'đ' : '0đ'}
+
+                  {isEditing ? (
+                    /* Mobile Edit Form */
+                    <div className="space-y-2 pt-2" style={{ borderTop: '1px solid var(--border-light)' }}
+                      onClick={(e) => e.stopPropagation()}>
+                      <div className="flex gap-2">
+                        <label className="flex-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+                          Đã trả (đ)
+                          <input className="w-full mt-1" type="number" min="0" value={editPaid}
+                            onChange={(e) => setEditPaid(e.target.value)} />
+                        </label>
+                        <label className="flex-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+                          Khách hàng
+                          <select className="w-full mt-1" value={editCustomer}
+                            onChange={(e) => setEditCustomer(e.target.value)}>
+                            <option value="">Khách lẻ</option>
+                            {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          </select>
+                        </label>
+                      </div>
+                      <label className="text-xs block" style={{ color: 'var(--text-muted)' }}>
+                        Ghi chú
+                        <input className="w-full mt-1" value={editNote}
+                          onChange={(e) => setEditNote(e.target.value)} placeholder="Ghi chú..." />
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <button className="btn-primary text-xs py-2 px-4 flex-1" disabled={editLoading}
+                          onClick={() => void saveEdit()} type="button">{editLoading ? '...' : 'Lưu'}</button>
+                        <button className="btn-secondary text-xs py-2 px-4"
+                          onClick={() => setEditId(null)} type="button">Huỷ</button>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex items-center justify-between text-xs" style={{ color: 'var(--text-muted)' }}>
-                    <span>{o.customer?.name ?? 'Khách lẻ'}</span>
-                    <span>{new Date(o.soldAt).toLocaleString('vi-VN')}</span>
-                  </div>
-                  <div className="mobile-card-actions">
-                    {o.status !== 'cancelled' ? (
-                      <>
-                        <button className="btn-secondary text-xs" onClick={() => startEdit(o)} type="button">Sửa</button>
+                  ) : (
+                    /* Normal display */
+                    <>
+                      <div className="grid grid-cols-3 gap-2 text-center mb-2">
+                        <div>
+                          <div className="mobile-card-label">Tổng</div>
+                          <div className="mobile-card-value tabular-nums">{o.totalAmount.toLocaleString('vi-VN')}đ</div>
+                        </div>
+                        <div>
+                          <div className="mobile-card-label">Đã trả</div>
+                          <div className="mobile-card-value tabular-nums">{o.paidAmount.toLocaleString('vi-VN')}đ</div>
+                        </div>
+                        <div>
+                          <div className="mobile-card-label">Nợ</div>
+                          <div className="mobile-card-value tabular-nums" style={{ color: o.debtAmount > 0 ? '#e11d48' : '#047857' }}>
+                            {o.debtAmount > 0 ? o.debtAmount.toLocaleString('vi-VN') + 'đ' : '0đ'}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between text-xs" style={{ color: 'var(--text-muted)' }}>
+                        <span>{o.customer?.name ?? 'Khách lẻ'}</span>
+                        <span>{new Date(o.soldAt).toLocaleString('vi-VN')}</span>
+                      </div>
+                      <div className="mobile-card-actions" onClick={(e) => e.stopPropagation()}>
+                        {o.status !== 'cancelled' ? (
+                          <>
+                            <button className="btn-secondary text-xs" onClick={() => startEdit(o)} type="button">Sửa</button>
+                            <button className="text-xs py-2 px-3 rounded-lg font-medium"
+                              style={{ background: 'rgba(225,29,72,0.08)', color: '#e11d48' }}
+                              onClick={() => setCancelTarget({ id: o.id, saleNo: o.saleNo })} type="button">Huỷ đơn</button>
+                          </>
+                        ) : null}
                         <button className="text-xs py-2 px-3 rounded-lg font-medium"
-                          style={{ background: 'rgba(225,29,72,0.08)', color: '#e11d48' }}
-                          onClick={() => setCancelTarget({ id: o.id, saleNo: o.saleNo })} type="button">Huỷ đơn</button>
-                      </>
-                    ) : null}
-                    <button className="text-xs py-2 px-3 rounded-lg font-medium"
-                      style={{ background: 'rgba(99,102,241,0.08)', color: '#6366f1' }}
-                      onClick={() => {
-                        localStorage.setItem('prefill_cart', JSON.stringify(o.items.map((i) => ({
-                          productName: i.productName, qty: i.qty, unitPrice: i.unitPrice,
-                        }))))
-                        if (o.customer) localStorage.setItem('prefill_customer', o.customer.id)
-                        router.push('/sales')
-                      }} type="button">Tạo lại</button>
-                  </div>
+                          style={{ background: 'rgba(99,102,241,0.08)', color: '#6366f1' }}
+                          onClick={() => {
+                            localStorage.setItem('prefill_cart', JSON.stringify(o.items.map((i) => ({
+                              productName: i.productName, qty: i.qty, unitPrice: i.unitPrice,
+                            }))))
+                            if (o.customer) localStorage.setItem('prefill_customer', o.customer.id)
+                            router.push('/sales')
+                          }} type="button">Tạo lại</button>
+                      </div>
+                    </>
+                  )}
                 </div>
-              ))}
+                )
+              })}
             </div>
           </>
         ) : null}
