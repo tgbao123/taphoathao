@@ -157,7 +157,7 @@ export default function CustomerDetailPage() {
                     {/* Header */}
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-mono font-medium" style={{ color: 'var(--primary)' }}>{o.saleNo}</span>
+                        <Link href={`/orders/${o.id}`} className="text-xs font-mono font-medium" style={{ color: 'var(--primary)' }}>{o.saleNo}</Link>
                         {o.status === 'cancelled' ? (
                           <span className="badge badge-danger text-[10px]">Đã huỷ</span>
                         ) : null}

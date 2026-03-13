@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
@@ -209,7 +210,7 @@ export default function OrdersPage() {
                     return (
                       <tr key={o.id} style={o.status === 'cancelled' ? { opacity: 0.5 } : undefined}>
                         <td className="text-xs font-mono" style={{ color: 'var(--primary)' }}>
-                          {o.saleNo}
+                          <Link href={`/orders/${o.id}`} className="hover:underline">{o.saleNo}</Link>
                           {o.note ? <p className="mt-1 font-sans" style={{ color: 'var(--text-muted)' }}>Ghi chú: {o.note}</p> : null}
                         </td>
                         <td className="text-xs" style={{ color: 'var(--text-secondary)' }}>
@@ -288,7 +289,7 @@ export default function OrdersPage() {
               {filtered.map((o) => (
                 <div key={o.id} className="mobile-card" style={o.status === 'cancelled' ? { opacity: 0.5 } : undefined}>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-mono font-medium" style={{ color: 'var(--primary)' }}>{o.saleNo}</span>
+                    <Link href={`/orders/${o.id}`} className="text-xs font-mono font-medium" style={{ color: 'var(--primary)' }}>{o.saleNo}</Link>
                     {statusLabel(o.status)}
                   </div>
                   <div className="text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>
