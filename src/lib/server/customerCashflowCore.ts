@@ -200,9 +200,9 @@ export async function getSummaryKpis(searchParams: URLSearchParams) {
   const supabase = getSupabaseAdmin()
   const range = dateRange(searchParams)
 
-  let salesQ = supabase.from('sales').select('total_amount, debt_amount, sold_at')
-  if (range.from) salesQ = salesQ.gte('sold_at', range.from)
-  if (range.to) salesQ = salesQ.lte('sold_at', range.to)
+  let salesQ = supabase.from('sales').select('total_amount, debt_amount, created_at').neq('status', 'cancelled')
+  if (range.from) salesQ = salesQ.gte('created_at', range.from)
+  if (range.to) salesQ = salesQ.lte('created_at', range.to)
 
   let cashQ = supabase.from('cash_transactions').select('txn_type, amount, occurred_at')
   if (range.from) cashQ = cashQ.gte('occurred_at', range.from)
