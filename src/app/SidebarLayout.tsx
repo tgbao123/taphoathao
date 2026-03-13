@@ -85,9 +85,18 @@ const navItems = [
   },
 ]
 
+// Bottom tab items (5 main tabs for mobile)
+const bottomTabs = [
+  { href: '/sales', label: 'Bán hàng', iconIdx: 2 },
+  { href: '/orders', label: 'Đơn hàng', iconIdx: 3 },
+  { href: '/cashflow', label: 'Thu/Chi', iconIdx: 5 },
+  { href: '/customers', label: 'Khách', iconIdx: 4 },
+]
+
 export function SidebarLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
 
   const isLoginPage = pathname === '/login' || pathname === '/'
 
@@ -102,9 +111,14 @@ export function SidebarLayout({ children }: { children: React.ReactNode }) {
     return pathname.startsWith(href)
   }
 
+  // Items for "More" menu on mobile
+  const moreItems = navItems.filter(
+    (item) => !bottomTabs.some((tab) => tab.href === item.href)
+  )
+
   return (
     <div className="flex min-h-screen">
-      {/* Mobile overlay */}
+      {/* Mobile overlay (sidebar) */}
       {mobileOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
@@ -112,7 +126,7 @@ export function SidebarLayout({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      {/* Sidebar */}
+      {/* Desktop Sidebar */}
       <aside
         className={`
           fixed top-0 left-0 z-50 flex h-screen w-64 flex-col
@@ -175,10 +189,11 @@ export function SidebarLayout({ children }: { children: React.ReactNode }) {
 
       {/* Main */}
       <div className="flex flex-1 flex-col min-w-0">
-        {/* Top bar (mobile) */}
-        <header className="sticky top-0 z-30 flex items-center gap-3 border-b bg-white/80 backdrop-blur-md px-4 py-3 lg:hidden"
+        {/* Top bar (mobile — simplified, just logo) */}
+        <header className="sticky top-0 z-30 flex items-center justify-between border-b bg-white/80 backdrop-blur-md px-4 py-3 lg:hidden"
           style={{ borderColor: 'var(--border)' }}
         >
+          <span className="text-sm font-semibold text-slate-800">TapHoaThao</span>
           <button
             onClick={() => setMobileOpen(true)}
             className="rounded-lg p-1.5 hover:bg-slate-100 transition-colors"
@@ -191,16 +206,77 @@ export function SidebarLayout({ children }: { children: React.ReactNode }) {
               <line x1="3" y1="18" x2="21" y2="18" />
             </svg>
           </button>
-          <span className="text-sm font-semibold text-slate-800">TapHoaThao</span>
         </header>
 
-        {/* Page content */}
-        <main className="flex-1 p-4 md:p-6 lg:p-8 animate-fade-in">
+        {/* Page content — extra bottom padding on mobile for tab bar */}
+        <main className="flex-1 p-4 md:p-6 lg:p-8 pb-24 lg:pb-8 animate-fade-in">
           <div className="mx-auto max-w-6xl">
             {children}
           </div>
         </main>
       </div>
+
+      {/* ===== Bottom Tab Bar (mobile only) ===== */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bottom-tab-bar">
+        <div className="flex items-stretch justify-around">
+          {bottomTabs.map((tab) => {
+            const active = isActive(tab.href)
+            const navItem = navItems[tab.iconIdx]
+            return (
+              <Link
+                key={tab.href}
+                href={tab.href}
+                className={`bottom-tab-item ${active ? 'active' : ''}`}
+              >
+                <span className="bottom-tab-icon">{navItem.icon}</span>
+                <span className="bottom-tab-label">{tab.label}</span>
+              </Link>
+            )
+          })}
+          {/* More button */}
+          <button
+            type="button"
+            className={`bottom-tab-item ${moreOpen ? 'active' : ''}`}
+            onClick={() => setMoreOpen(!moreOpen)}
+          >
+            <span className="bottom-tab-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="1" />
+                <circle cx="19" cy="12" r="1" />
+                <circle cx="5" cy="12" r="1" />
+              </svg>
+            </span>
+            <span className="bottom-tab-label">Thêm</span>
+          </button>
+        </div>
+
+        {/* More menu popup */}
+        {moreOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setMoreOpen(false)} />
+            <div className="absolute bottom-full left-0 right-0 z-50 px-3 pb-2">
+              <div className="card p-2 shadow-xl" style={{ background: 'var(--surface)', borderRadius: '16px' }}>
+                {moreItems.map((item) => {
+                  const active = isActive(item.href)
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setMoreOpen(false)}
+                      className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
+                        active ? 'bg-indigo-50 text-indigo-600' : 'text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className="w-5 h-5 flex-shrink-0">{item.icon}</span>
+                      {item.label}
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          </>
+        )}
+      </nav>
     </div>
   )
 }

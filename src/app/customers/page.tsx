@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useMemo, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 
@@ -251,7 +252,7 @@ export default function CustomersPage() {
               Tải lại
             </button>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto desktop-table">
             <table className="styled-table">
               <thead>
                 <tr>
@@ -270,7 +271,11 @@ export default function CustomersPage() {
                         {isEditing ? (
                           <input className="w-40" value={editState.name}
                             onChange={(e) => setEditState((prev) => prev ? { ...prev, name: e.target.value } : prev)} />
-                        ) : c.name}
+                        ) : (
+                          <Link href={`/customers/${c.id}`} className="hover:underline" style={{ color: 'var(--primary)' }}>
+                            {c.name}
+                          </Link>
+                        )}
                       </td>
                       <td className="font-mono text-xs">
                         {isEditing ? (
@@ -321,6 +326,56 @@ export default function CustomersPage() {
                 })}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Cards */}
+          <div className="mobile-cards space-y-3">
+            {filtered.map((c) => {
+              const isEditing = editState?.id === c.id
+              const debt = debtMap[c.id] ?? 0
+              return (
+                <div key={c.id} className="mobile-card">
+                  {isEditing ? (
+                    <div className="space-y-3">
+                      <input className="w-full" value={editState.name} placeholder="Tên KH"
+                        onChange={(e) => setEditState((prev) => prev ? { ...prev, name: e.target.value } : prev)} />
+                      <input className="w-full" value={editState.phone} placeholder="SĐT"
+                        onChange={(e) => setEditState((prev) => prev ? { ...prev, phone: e.target.value } : prev)} />
+                      <div className="flex items-center gap-2">
+                        <button className="btn-primary text-xs py-1.5 px-3 flex-1" disabled={editLoading}
+                          onClick={() => void saveEdit()} type="button">
+                          {editLoading ? '...' : 'Lưu'}
+                        </button>
+                        <button className="btn-secondary text-xs py-1.5 px-3"
+                          onClick={() => setEditState(null)} type="button">Hủy</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <Link href={`/customers/${c.id}`} className="text-sm font-semibold" style={{ color: 'var(--primary)' }}>
+                          {c.name}
+                        </Link>
+                        <span className="font-medium tabular-nums text-xs"
+                          style={{ color: debt > 0 ? '#e11d48' : '#047857' }}>
+                          {debt > 0 ? 'Nợ ' + debt.toLocaleString('vi-VN') + 'đ' : '0đ'}
+                        </span>
+                      </div>
+                      {c.phone ? (
+                        <p className="text-xs font-mono mb-2" style={{ color: 'var(--text-muted)' }}>{c.phone}</p>
+                      ) : null}
+                      <div className="flex items-center gap-2 pt-2" style={{ borderTop: '1px solid var(--border-light)' }}>
+                        <button className="btn-secondary text-xs py-2 px-4 flex-1"
+                          onClick={() => startEdit(c)} type="button">✏️ Sửa</button>
+                        <button className="btn-secondary text-xs py-2 px-4 flex-1"
+                          style={{ color: '#e11d48' }}
+                          onClick={() => setDeleteTarget({ id: c.id, name: c.name })} type="button">🗑 Xóa</button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </section>
       ) : null}

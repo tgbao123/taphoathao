@@ -186,101 +186,159 @@ export default function OrdersPage() {
         ) : null}
 
         {!loading && !error && filtered.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="styled-table">
-              <thead>
-                <tr>
-                  <th>Mã đơn</th>
-                  <th>Sản phẩm</th>
-                  <th>Thời gian</th>
-                  <th>Khách hàng</th>
-                  <th>Tổng tiền</th>
-                  <th>Đã trả</th>
-                  <th>Nợ</th>
-                  <th>Trạng thái</th>
-                  <th>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((o) => {
-                  const isEditing = editId === o.id
-                  const isExpanded = expandedId === o.id
-                  return (
-                    <tr key={o.id} style={o.status === 'cancelled' ? { opacity: 0.5 } : undefined}>
-                      <td className="text-xs font-mono" style={{ color: 'var(--primary)' }}>
-                        {o.saleNo}
-                        {o.note ? <p className="mt-1 font-sans" style={{ color: 'var(--text-muted)' }}>Ghi chú: {o.note}</p> : null}
-                      </td>
-                      <td className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                        {o.items.map((item, idx) => (
-                          <span key={item.id}>
-                            {item.productName} ×{item.qty}
-                            {idx < o.items.length - 1 ? ', ' : ''}
-                          </span>
-                        ))}
-                      </td>
-                      <td className="text-xs">{new Date(o.soldAt).toLocaleString('vi-VN')}</td>
-                      <td className="text-sm">
-                        {isEditing ? (
-                          <select className="w-full text-xs" value={editCustomer}
-                            onChange={(e) => setEditCustomer(e.target.value)}>
-                            <option value="">Khách lẻ</option>
-                            {customers.map((c) => (
-                              <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                          </select>
-                        ) : (o.customer?.name ?? <span style={{ color: 'var(--text-muted)' }}>Khách lẻ</span>)}
-                      </td>
-                      <td className="font-medium tabular-nums">{o.totalAmount.toLocaleString('vi-VN')}đ</td>
-                      <td className="tabular-nums">
-                        {isEditing ? (
-                          <input className="w-20 text-xs" type="number" min="0" value={editPaid}
-                            onChange={(e) => setEditPaid(e.target.value)} />
-                        ) : (
-                          <span className="font-medium">{o.paidAmount.toLocaleString('vi-VN')}đ</span>
-                        )}
-                      </td>
-                      <td className="font-medium tabular-nums" style={{ color: o.debtAmount > 0 ? '#e11d48' : '#047857' }}>
+          <>
+            {/* Desktop Table */}
+            <div className="overflow-x-auto desktop-table">
+              <table className="styled-table">
+                <thead>
+                  <tr>
+                    <th>Mã đơn</th>
+                    <th>Sản phẩm</th>
+                    <th>Thời gian</th>
+                    <th>Khách hàng</th>
+                    <th>Tổng tiền</th>
+                    <th>Đã trả</th>
+                    <th>Nợ</th>
+                    <th>Trạng thái</th>
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((o) => {
+                    const isEditing = editId === o.id
+                    return (
+                      <tr key={o.id} style={o.status === 'cancelled' ? { opacity: 0.5 } : undefined}>
+                        <td className="text-xs font-mono" style={{ color: 'var(--primary)' }}>
+                          {o.saleNo}
+                          {o.note ? <p className="mt-1 font-sans" style={{ color: 'var(--text-muted)' }}>Ghi chú: {o.note}</p> : null}
+                        </td>
+                        <td className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                          {o.items.map((item, idx) => (
+                            <span key={item.id}>
+                              {item.productName} ×{item.qty}
+                              {idx < o.items.length - 1 ? ', ' : ''}
+                            </span>
+                          ))}
+                        </td>
+                        <td className="text-xs">{new Date(o.soldAt).toLocaleString('vi-VN')}</td>
+                        <td className="text-sm">
+                          {isEditing ? (
+                            <select className="w-full text-xs" value={editCustomer}
+                              onChange={(e) => setEditCustomer(e.target.value)}>
+                              <option value="">Khách lẻ</option>
+                              {customers.map((c) => (
+                                <option key={c.id} value={c.id}>{c.name}</option>
+                              ))}
+                            </select>
+                          ) : (o.customer?.name ?? <span style={{ color: 'var(--text-muted)' }}>Khách lẻ</span>)}
+                        </td>
+                        <td className="font-medium tabular-nums">{o.totalAmount.toLocaleString('vi-VN')}đ</td>
+                        <td className="tabular-nums">
+                          {isEditing ? (
+                            <input className="w-20 text-xs" type="number" min="0" value={editPaid}
+                              onChange={(e) => setEditPaid(e.target.value)} />
+                          ) : (
+                            <span className="font-medium">{o.paidAmount.toLocaleString('vi-VN')}đ</span>
+                          )}
+                        </td>
+                        <td className="font-medium tabular-nums" style={{ color: o.debtAmount > 0 ? '#e11d48' : '#047857' }}>
+                          {o.debtAmount > 0 ? o.debtAmount.toLocaleString('vi-VN') + 'đ' : '0đ'}
+                        </td>
+                        <td>{statusLabel(o.status)}</td>
+                        <td>
+                          <div className="flex items-center gap-1.5">
+                            {o.status !== 'cancelled' ? (
+                              isEditing ? (
+                                <>
+                                  <button className="btn-primary text-xs py-1 px-2.5" disabled={editLoading}
+                                    onClick={() => void saveEdit()} type="button">Lưu</button>
+                                  <button className="btn-secondary text-xs py-1 px-2.5"
+                                    onClick={() => setEditId(null)} type="button">Huỷ</button>
+                                </>
+                              ) : (
+                                <>
+                                  <button className="btn-secondary text-xs py-1 px-2.5"
+                                    onClick={() => startEdit(o)} type="button">Sửa</button>
+                                  <button className="text-xs py-1 px-2.5 rounded-lg font-medium"
+                                    style={{ background: 'rgba(225,29,72,0.08)', color: '#e11d48' }}
+                                    onClick={() => setCancelTarget({ id: o.id, saleNo: o.saleNo })} type="button">Huỷ đơn</button>
+                                </>
+                              )
+                            ) : null}
+                            <button className="text-xs py-1 px-2.5 rounded-lg font-medium"
+                              style={{ background: 'rgba(99,102,241,0.08)', color: '#6366f1' }}
+                              onClick={() => {
+                                localStorage.setItem('prefill_cart', JSON.stringify(o.items.map((i) => ({
+                                  productName: i.productName, qty: i.qty, unitPrice: i.unitPrice,
+                                }))))
+                                if (o.customer) localStorage.setItem('prefill_customer', o.customer.id)
+                                router.push('/sales')
+                              }} type="button">Tạo lại</button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="mobile-cards flex-col gap-3 p-3" style={{ display: 'none' }}>
+              {filtered.map((o) => (
+                <div key={o.id} className="mobile-card" style={o.status === 'cancelled' ? { opacity: 0.5 } : undefined}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-mono font-medium" style={{ color: 'var(--primary)' }}>{o.saleNo}</span>
+                    {statusLabel(o.status)}
+                  </div>
+                  <div className="text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>
+                    {o.items.map((item, idx) => (
+                      <span key={item.id}>{item.productName} ×{item.qty}{idx < o.items.length - 1 ? ', ' : ''}</span>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center mb-2">
+                    <div>
+                      <div className="mobile-card-label">Tổng</div>
+                      <div className="mobile-card-value tabular-nums">{o.totalAmount.toLocaleString('vi-VN')}đ</div>
+                    </div>
+                    <div>
+                      <div className="mobile-card-label">Đã trả</div>
+                      <div className="mobile-card-value tabular-nums">{o.paidAmount.toLocaleString('vi-VN')}đ</div>
+                    </div>
+                    <div>
+                      <div className="mobile-card-label">Nợ</div>
+                      <div className="mobile-card-value tabular-nums" style={{ color: o.debtAmount > 0 ? '#e11d48' : '#047857' }}>
                         {o.debtAmount > 0 ? o.debtAmount.toLocaleString('vi-VN') + 'đ' : '0đ'}
-                      </td>
-                      <td>{statusLabel(o.status)}</td>
-                      <td>
-                        <div className="flex items-center gap-1.5">
-                          {o.status !== 'cancelled' ? (
-                            isEditing ? (
-                              <>
-                                <button className="btn-primary text-xs py-1 px-2.5" disabled={editLoading}
-                                  onClick={() => void saveEdit()} type="button">Lưu</button>
-                                <button className="btn-secondary text-xs py-1 px-2.5"
-                                  onClick={() => setEditId(null)} type="button">Huỷ</button>
-                              </>
-                            ) : (
-                              <>
-                                <button className="btn-secondary text-xs py-1 px-2.5"
-                                  onClick={() => startEdit(o)} type="button">Sửa</button>
-                                <button className="text-xs py-1 px-2.5 rounded-lg font-medium"
-                                  style={{ background: 'rgba(225,29,72,0.08)', color: '#e11d48' }}
-                                  onClick={() => setCancelTarget({ id: o.id, saleNo: o.saleNo })} type="button">Huỷ đơn</button>
-                              </>
-                            )
-                          ) : null}
-                          <button className="text-xs py-1 px-2.5 rounded-lg font-medium"
-                            style={{ background: 'rgba(99,102,241,0.08)', color: '#6366f1' }}
-                            onClick={() => {
-                              localStorage.setItem('prefill_cart', JSON.stringify(o.items.map((i) => ({
-                                productName: i.productName, qty: i.qty, unitPrice: i.unitPrice,
-                              }))))
-                              if (o.customer) localStorage.setItem('prefill_customer', o.customer.id)
-                              router.push('/sales')
-                            }} type="button">Tạo lại</button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-xs" style={{ color: 'var(--text-muted)' }}>
+                    <span>{o.customer?.name ?? 'Khách lẻ'}</span>
+                    <span>{new Date(o.soldAt).toLocaleString('vi-VN')}</span>
+                  </div>
+                  <div className="mobile-card-actions">
+                    {o.status !== 'cancelled' ? (
+                      <>
+                        <button className="btn-secondary text-xs" onClick={() => startEdit(o)} type="button">Sửa</button>
+                        <button className="text-xs py-2 px-3 rounded-lg font-medium"
+                          style={{ background: 'rgba(225,29,72,0.08)', color: '#e11d48' }}
+                          onClick={() => setCancelTarget({ id: o.id, saleNo: o.saleNo })} type="button">Huỷ đơn</button>
+                      </>
+                    ) : null}
+                    <button className="text-xs py-2 px-3 rounded-lg font-medium"
+                      style={{ background: 'rgba(99,102,241,0.08)', color: '#6366f1' }}
+                      onClick={() => {
+                        localStorage.setItem('prefill_cart', JSON.stringify(o.items.map((i) => ({
+                          productName: i.productName, qty: i.qty, unitPrice: i.unitPrice,
+                        }))))
+                        if (o.customer) localStorage.setItem('prefill_customer', o.customer.id)
+                        router.push('/sales')
+                      }} type="button">Tạo lại</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         ) : null}
       </section>
 
