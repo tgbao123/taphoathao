@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 
@@ -40,8 +40,12 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [hasMore, setHasMore] = useState(false)
+  const [total, setTotal] = useState(0)
+  const PAGE_SIZE = 10
 
   // Edit state
   const [editId, setEditId] = useState<string | null>(null)
@@ -56,26 +60,55 @@ export default function OrdersPage() {
   // Detail expand
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
-  async function fetchData() {
-    setLoading(true)
-    setError(null)
+  // Sentinel ref for infinite scroll
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
+
+  async function fetchData(reset = true) {
+    if (reset) {
+      setLoading(true)
+      setError(null)
+    } else {
+      setLoadingMore(true)
+    }
     try {
+      const offset = reset ? 0 : orders.length
       const [ordRes, custRes] = await Promise.all([
-        fetch('/api/orders', { cache: 'no-store' }),
-        fetch('/api/customers', { cache: 'no-store' }),
+        fetch(`/api/orders?limit=${PAGE_SIZE}&offset=${offset}`, { cache: 'no-store' }),
+        ...(reset ? [fetch('/api/customers', { cache: 'no-store' })] : []),
       ])
-      const ordJson = (await ordRes.json()) as { data?: Order[] }
-      const custJson = (await custRes.json()) as { data?: Customer[] }
-      setOrders(ordJson.data ?? [])
-      setCustomers(custJson.data ?? [])
+      const ordJson = (await ordRes.json()) as { data?: Order[]; total?: number; hasMore?: boolean }
+      if (reset) {
+        setOrders(ordJson.data ?? [])
+        const custJson = (await custRes!.json()) as { data?: Customer[] }
+        setCustomers(custJson.data ?? [])
+      } else {
+        setOrders((prev) => [...prev, ...(ordJson.data ?? [])])
+      }
+      setTotal(ordJson.total ?? 0)
+      setHasMore(ordJson.hasMore ?? false)
     } catch {
       setError('Không tải được danh sách đơn hàng')
     } finally {
       setLoading(false)
+      setLoadingMore(false)
     }
   }
 
   useEffect(() => { void fetchData() }, [])
+
+  // IntersectionObserver for infinite scroll
+  useEffect(() => {
+    if (!hasMore || loadingMore) return
+    const el = sentinelRef.current
+    if (!el) return
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        void fetchData(false)
+      }
+    }, { rootMargin: '200px' })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [hasMore, loadingMore, orders.length])
 
   const filtered = useMemo(() => {
     const kw = search.trim().toLowerCase()
@@ -382,6 +415,21 @@ export default function OrdersPage() {
               })}
             </div>
           </>
+        ) : null}
+
+        {/* Infinite scroll sentinel + count */}
+        {!loading && !error && orders.length > 0 ? (
+          <div className="p-4 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
+            {loadingMore ? (
+              <div className="flex items-center justify-center gap-2">
+                <span className="spinner spinner-dark" /> Đang tải thêm...
+              </div>
+            ) : hasMore ? (
+              <div ref={sentinelRef} />
+            ) : (
+              <span>Hiển thị {orders.length} / {total} đơn hàng</span>
+            )}
+          </div>
         ) : null}
       </section>
 

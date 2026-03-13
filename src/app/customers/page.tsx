@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 
 import { useRequireSession } from '@/lib/useRequireSession'
@@ -21,8 +21,12 @@ export default function CustomersPage() {
 
   const [customers, setCustomers] = useState<Customer[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
+  const [hasMore, setHasMore] = useState(false)
+  const [total, setTotal] = useState(0)
+  const PAGE_SIZE = 10
 
   // Create form
   const [showCreate, setShowCreate] = useState(false)
@@ -39,29 +43,49 @@ export default function CustomersPage() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [debtMap, setDebtMap] = useState<Record<string, number>>({})
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
 
-  async function fetchData() {
-    setLoading(true)
-    setError(null)
+  async function fetchData(reset = true) {
+    if (reset) { setLoading(true); setError(null) } else { setLoadingMore(true) }
     try {
-      const [custRes, debtRes] = await Promise.all([
-        fetch('/api/customers', { cache: 'no-store' }),
-        fetch('/api/customers/debt', { cache: 'no-store' }),
+      const offset = reset ? 0 : customers.length
+      const [custRes, ...rest] = await Promise.all([
+        fetch(`/api/customers?limit=${PAGE_SIZE}&offset=${offset}`, { cache: 'no-store' }),
+        ...(reset ? [fetch('/api/customers/debt', { cache: 'no-store' })] : []),
       ])
-      const json = (await custRes.json()) as { data?: Customer[] } & ApiError
+      const json = (await custRes.json()) as { data?: Customer[]; pagination?: { total?: number } } & ApiError
       if (!custRes.ok) throw new Error(json.error?.message ?? 'Không tải được danh sách')
-      setCustomers(json.data ?? [])
-
-      const debtJson = (await debtRes.json()) as { data?: Record<string, number> }
-      setDebtMap(debtJson.data ?? {})
+      const newTotal = json.pagination?.total ?? 0
+      if (reset) {
+        setCustomers(json.data ?? [])
+        const debtRes = rest[0]!
+        const debtJson = (await debtRes.json()) as { data?: Record<string, number> }
+        setDebtMap(debtJson.data ?? {})
+      } else {
+        setCustomers((prev) => [...prev, ...(json.data ?? [])])
+      }
+      setTotal(newTotal)
+      setHasMore(offset + PAGE_SIZE < newTotal)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Không tải được danh sách')
     } finally {
       setLoading(false)
+      setLoadingMore(false)
     }
   }
 
   useEffect(() => { void fetchData() }, [])
+
+  useEffect(() => {
+    if (!hasMore || loadingMore) return
+    const el = sentinelRef.current
+    if (!el) return
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) void fetchData(false)
+    }, { rootMargin: '200px' })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [hasMore, loadingMore, customers.length])
 
   const filtered = useMemo(() => {
     const keyword = query.trim().toLowerCase()
@@ -377,6 +401,16 @@ export default function CustomersPage() {
               )
             })}
           </div>
+
+          {!loading && !error && customers.length > 0 ? (
+            <div className="p-4 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
+              {loadingMore ? (
+                <div className="flex items-center justify-center gap-2"><span className="spinner spinner-dark" /> Đang tải thêm...</div>
+              ) : hasMore ? <div ref={sentinelRef} /> : (
+                <span>Hiển thị {customers.length} / {total} khách hàng</span>
+              )}
+            </div>
+          ) : null}
         </section>
       ) : null}
       {/* Delete confirmation modal */}

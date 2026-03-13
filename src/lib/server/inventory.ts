@@ -96,12 +96,29 @@ export async function createUnit(input: CreateUnitInput) {
     .single()
 }
 
-export async function listProducts() {
+export async function listProducts(opts?: { limit?: number; offset?: number }) {
   const supabase = getSupabaseAdmin()
-  return supabase
+  const limit = opts?.limit ?? 1000
+  const offset = opts?.offset ?? 0
+
+  const { count } = await supabase
+    .from('products')
+    .select('id', { count: 'exact', head: true })
+
+  const { data, error } = await supabase
     .from('products')
     .select('*, unit:units(id, code, name, symbol)')
     .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  if (error) return { data: null, error }
+
+  return {
+    data: data ?? [],
+    error: null,
+    total: count ?? 0,
+    hasMore: offset + limit < (count ?? 0),
+  }
 }
 
 export async function getProductById(id: string) {

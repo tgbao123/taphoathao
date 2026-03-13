@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { useRequireSession } from '@/lib/useRequireSession'
 
@@ -57,7 +57,11 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [units, setUnits] = useState<Unit[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [hasMore, setHasMore] = useState(false)
+  const [total, setTotal] = useState(0)
+  const PAGE_SIZE = 10
 
   const [createForm, setCreateForm] = useState(initialCreateForm)
   const [createLoading, setCreateLoading] = useState(false)
@@ -68,40 +72,49 @@ export default function ProductsPage() {
   const [actionError, setActionError] = useState<string | null>(null)
 
   const [showCreateForm, setShowCreateForm] = useState(false)
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
 
-  async function fetchData() {
-    setLoading(true)
-    setError(null)
-
+  async function fetchData(reset = true) {
+    if (reset) { setLoading(true); setError(null) } else { setLoadingMore(true) }
     try {
-      const [productsRes, unitsRes] = await Promise.all([
-        fetch('/api/products', { cache: 'no-store' }),
-        fetch('/api/units', { cache: 'no-store' }),
+      const offset = reset ? 0 : products.length
+      const [productsRes, ...rest] = await Promise.all([
+        fetch(`/api/products?limit=${PAGE_SIZE}&offset=${offset}`, { cache: 'no-store' }),
+        ...(reset ? [fetch('/api/units', { cache: 'no-store' })] : []),
       ])
-
-      const productsJson = (await productsRes.json()) as { data?: Product[] } & ApiError
-      const unitsJson = (await unitsRes.json()) as { data?: Unit[] } & ApiError
-
-      if (!productsRes.ok) {
-        throw new Error(productsJson.error?.message ?? 'Failed to load products')
+      const productsJson = (await productsRes.json()) as { data?: Product[]; total?: number; hasMore?: boolean } & ApiError
+      if (!productsRes.ok) throw new Error(productsJson.error?.message ?? 'Failed to load products')
+      if (reset) {
+        setProducts(productsJson.data ?? [])
+        const unitsRes = rest[0]!
+        const unitsJson = (await unitsRes.json()) as { data?: Unit[] } & ApiError
+        if (!unitsRes.ok) throw new Error(unitsJson.error?.message ?? 'Failed to load units')
+        setUnits(unitsJson.data ?? [])
+      } else {
+        setProducts((prev) => [...prev, ...(productsJson.data ?? [])])
       }
-
-      if (!unitsRes.ok) {
-        throw new Error(unitsJson.error?.message ?? 'Failed to load units')
-      }
-
-      setProducts(productsJson.data ?? [])
-      setUnits(unitsJson.data ?? [])
+      setTotal(productsJson.total ?? 0)
+      setHasMore(productsJson.hasMore ?? false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch data')
     } finally {
       setLoading(false)
+      setLoadingMore(false)
     }
   }
 
+  useEffect(() => { void fetchData() }, [])
+
   useEffect(() => {
-    void fetchData()
-  }, [])
+    if (!hasMore || loadingMore) return
+    const el = sentinelRef.current
+    if (!el) return
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) void fetchData(false)
+    }, { rootMargin: '200px' })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [hasMore, loadingMore, products.length])
 
   const unitMap = useMemo(() => {
     return new Map(units.map((u) => [u.id, u]))
@@ -609,6 +622,16 @@ export default function ProductsPage() {
             })}
           </div>
           </>
+        ) : null}
+
+        {!loading && !error && products.length > 0 ? (
+          <div className="p-4 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
+            {loadingMore ? (
+              <div className="flex items-center justify-center gap-2"><span className="spinner spinner-dark" /> Đang tải thêm...</div>
+            ) : hasMore ? <div ref={sentinelRef} /> : (
+              <span>Hiển thị {products.length} / {total} sản phẩm</span>
+            )}
+          </div>
         ) : null}
       </section>
     </div>

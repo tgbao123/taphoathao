@@ -17,15 +17,19 @@ function mapError(err: ApiError) {
   return { status: 400, code: 'BAD_REQUEST', message: err.message ?? 'Request failed' }
 }
 
-export async function GET() {
-  const { data, error } = await listProducts()
+export async function GET(request: NextRequest) {
+  const url = new URL(request.url)
+  const limit = Math.min(Number(url.searchParams.get('limit') || 1000), 1000)
+  const offset = Math.max(Number(url.searchParams.get('offset') || 0), 0)
 
-  if (error) {
-    const mapped = mapError(error)
+  const result = await listProducts({ limit, offset })
+
+  if (result.error) {
+    const mapped = mapError(result.error)
     return NextResponse.json({ error: mapped }, { status: mapped.status })
   }
 
-  return NextResponse.json({ data: data ?? [] })
+  return NextResponse.json({ data: result.data ?? [], total: result.total, hasMore: result.hasMore })
 }
 
 export async function POST(request: NextRequest) {

@@ -120,19 +120,28 @@ export async function createSale(input: { payload: CreateSalePayload; idempotenc
 }
 
 // ========== List Orders ==========
-export async function listOrders() {
+export async function listOrders(opts?: { limit?: number; offset?: number }) {
   const supabase = getSupabaseAdmin()
+  const limit = opts?.limit ?? 20
+  const offset = opts?.offset ?? 0
+
+  // Get total count
+  const { count } = await supabase
+    .from('sales')
+    .select('id', { count: 'exact', head: true })
 
   const { data, error } = await supabase
     .from('sales')
     .select('id, sale_no, customer_id, created_at, subtotal, total_amount, paid_amount, debt_amount, status, note')
     .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
 
   if (error) {
     throw new SalesCoreError({ code: 'SALE_CREATE_FAILED', status: 400, message: error.message })
   }
 
   const sales = data ?? []
+  const total = count ?? 0
 
   // Get unique customer IDs
   const custIds = [...new Set(sales.map((s) => s.customer_id).filter(Boolean) as string[])]
@@ -172,7 +181,7 @@ export async function listOrders() {
     }
   }
 
-  return sales.map((s) => ({
+  const items = sales.map((s) => ({
     id: s.id,
     saleNo: s.sale_no,
     soldAt: s.created_at,
@@ -185,6 +194,8 @@ export async function listOrders() {
     customer: s.customer_id ? custMap.get(s.customer_id) ?? null : null,
     items: itemMap.get(s.id) ?? [],
   }))
+
+  return { data: items, total, hasMore: offset + limit < total }
 }
 
 // ========== Update Sale (payment info) ==========

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { useRequireSession } from '@/lib/useRequireSession'
 
@@ -38,7 +38,11 @@ export default function CashflowPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [stockMap, setStockMap] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [hasMore, setHasMore] = useState(false)
+  const [total, setTotal] = useState(0)
+  const PAGE_SIZE = 10
 
   // Import form (Chi - Nhập hàng)
   const [importLines, setImportLines] = useState<ImportLine[]>([{ productId: '', qty: '', importPrice: '' }])
@@ -46,31 +50,53 @@ export default function CashflowPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null)
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
 
-  async function fetchData() {
-    setLoading(true)
-    setError(null)
+  async function fetchData(reset = true) {
+    if (reset) { setLoading(true); setError(null) } else { setLoadingMore(true) }
     try {
-      const [cashRes, prodRes, stockRes] = await Promise.all([
-        fetch('/api/cashflow', { cache: 'no-store' }),
-        fetch('/api/products', { cache: 'no-store' }),
-        fetch('/api/stock', { cache: 'no-store' }),
+      const offset = reset ? 0 : items.length
+      const [cashRes, ...rest] = await Promise.all([
+        fetch(`/api/cashflow?limit=${PAGE_SIZE}&offset=${offset}`, { cache: 'no-store' }),
+        ...(reset ? [
+          fetch('/api/products', { cache: 'no-store' }),
+          fetch('/api/stock', { cache: 'no-store' }),
+        ] : []),
       ])
-      const cashJson = (await cashRes.json()) as { data?: CashflowItem[] } & ApiError
-      const prodJson = (await prodRes.json()) as { data?: Product[] } & ApiError
-      const stockJson = (await stockRes.json()) as { data?: Record<string, number> }
+      const cashJson = (await cashRes.json()) as { data?: CashflowItem[]; pagination?: { total?: number } } & ApiError
       if (!cashRes.ok) throw new Error(cashJson.error?.message ?? 'Không tải được dữ liệu')
-      setItems(cashJson.data ?? [])
-      setProducts(prodJson.data ?? [])
-      setStockMap(stockJson.data ?? {})
+      const newTotal = cashJson.pagination?.total ?? 0
+      if (reset) {
+        setItems(cashJson.data ?? [])
+        const prodJson = (await rest[0]!.json()) as { data?: Product[] } & ApiError
+        const stockJson = (await rest[1]!.json()) as { data?: Record<string, number> }
+        setProducts(prodJson.data ?? [])
+        setStockMap(stockJson.data ?? {})
+      } else {
+        setItems((prev) => [...prev, ...(cashJson.data ?? [])])
+      }
+      setTotal(newTotal)
+      setHasMore(offset + PAGE_SIZE < newTotal)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Không tải được dữ liệu')
     } finally {
       setLoading(false)
+      setLoadingMore(false)
     }
   }
 
   useEffect(() => { void fetchData() }, [])
+
+  useEffect(() => {
+    if (!hasMore || loadingMore) return
+    const el = sentinelRef.current
+    if (!el) return
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) void fetchData(false)
+    }, { rootMargin: '200px' })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [hasMore, loadingMore, items.length])
 
   const importTotal = useMemo(() => {
     return importLines.reduce((sum, line) => {
@@ -403,6 +429,16 @@ export default function CashflowPage() {
             ))}
           </div>
           </>
+        ) : null}
+
+        {!loading && !error && items.length > 0 ? (
+          <div className="p-4 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
+            {loadingMore ? (
+              <div className="flex items-center justify-center gap-2"><span className="spinner spinner-dark" /> Đang tải thêm...</div>
+            ) : hasMore ? <div ref={sentinelRef} /> : (
+              <span>Hiển thị {items.length} / {total} giao dịch</span>
+            )}
+          </div>
         ) : null}
       </section>
     </div>
